@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Declaración Interactiva</title>
+    
+    <script src="https://unpkg.com/rough-notation/lib/rough-notation.iife.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --text: #e0e0e0;
+            --card-bg: #2d2d2d;
+            --accent: #ff4081; /* Color rosa para el confetti y los trazos */
+            --correct: #4caf50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            /* Evita que el doble toque haga zoom en móviles al fallar el quiz */
+            touch-action: manipulation; 
+        }
+
+        .main-card {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            border: 1px solid #333;
+        }
+
+        /* Sección de la Frase Original */
+        .vaca-container {
+            font-size: 5rem;
+            margin-bottom: 10px;
+        }
+
+        .frase-original {
+            font-size: 1.8rem;
+            font-weight: 300;
+            margin-bottom: 40px;
+            line-height: 1.4;
+        }
+
+        /* Estilos para Rough Notation */
+        #palabra-normal {
+            position: relative;
+            display: inline-block;
+        }
+
+        #palabra-increible {
+            visibility: hidden; /* Oculto al principio */
+            color: var(--accent);
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        /* Sección del Multiple Choice */
+        .quiz-section {
+            border-top: 1px solid #444;
+            padding-top: 30px;
+        }
+
+        .pregunta {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #aaa;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .option-btn {
+            background: #3d3d3d;
+            color: white;
+            border: 2px solid #555;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .option-btn:hover {
+            background: #4d4d4d;
+            border-color: #777;
+        }
+
+        .option-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* Estado correcto al seleccionar */
+        .option-btn.selected-correct {
+            background-color: var(--correct) !important;
+            border-color: white !important;
+            color: white !important;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+
+        /* Instrucción final */
+        #instruccion {
+            margin-top: 30px;
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 1.1rem;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-card">
+        
+        <div class="vaca-container">🐄</div>
+        <p class="frase-original">
+            Mi novia tiene un culo 
+            <span id="palabra-normal">normal</span>.
+            <span id="palabra-increible">¡increíble!</span>
+        </p>
+
+        <div class="quiz-section">
+            <p class="pregunta">¿Cómo es el culo de tu novia?</p>
+            
+            <div class="options-grid">
+                <button class="option-btn" onclick="checkAnswer(this, 'normal')">normal</button>
+                <button class="option-btn" onclick="checkAnswer(this, 'feo')">feo</button>
+                <button class="option-btn" onclick="checkAnswer(this, 'increible')">increíble</button>
+            </div>
+        </div>
+
+        <p id="instruccion">¡Ahora toca la pantalla para corregir la verdad!</p>
+
+    </div>
+
+    <script>
+        // --- Configuración de Rough Notation ---
+        const eNormal = document.getElementById('palabra-normal');
+        const eIncreible = document.getElementById('palabra-increible');
+
+        // Creamos la anotación de "tachado" (strike-through)
+        const annotationTachado = RoughNotation.annotate(eNormal, { 
+            type: 'strike-through', 
+            color: '#ff4081', // Rosa acento
+            strokeWidth: 4,
+            animationDuration: 800 
+        });
+
+        // Creamos la anotación de "subrayado" para la corrección
+        const annotationSubrayado = RoughNotation.annotate(eIncreible, { 
+            type: 'underline', 
+            color: '#4caf50', // Verde éxito
+            strokeWidth: 3,
+            padding: 5
+        });
+
+
+        // --- Lógica de la Interacción ---
+        let quizResuelto = false;
+
+        function checkAnswer(boton, respuesta) {
+            // Evitamos responder varias veces
+            if (quizResuelto) return;
+
+            if (respuesta === 'increible') {
+                quizResuelto = true;
+                
+                // 1. Estilo visual del botón
+                boton.classList.add('selected-correct');
+
+                // 2. Lanzar Confetti (Celebración)
+                lanzarConfetti();
+
+                // 3. Mostrar instrucción final
+                document.getElementById('instruccion').style.opacity = '1';
+
+                // 4. Activar el evento de toque en pantalla para la corrección
+                // Usamos un pequeño delay para que no se pise con el click del botón
+                setTimeout(() => {
+                    document.body.addEventListener('click', corregirFrase, { once: true });
+                    document.body.addEventListener('touchstart', corregirFrase, { once: true });
+                }, 300);
+
+            } else {
+                // Feedback sutil de error (puedes añadir animate.css aquí)
+                boton.style.borderColor = '#e74c3c'; // Rojo
+                boton.style.backgroundColor = '#5a2d2d';
+                setTimeout(() => {
+                    boton.style.borderColor = '#555';
+                    boton.style.backgroundColor = '#3d3d3d';
+                }, 500);
+            }
+        }
+
+        function corregirFrase() {
+            // Esta función solo se ejecuta tras acertar el quiz
+            
+            // 1. Tachamos "normal"
+            annotationTachado.show();
+
+            // 2. Mostramos "increíble" con un pequeño delay
+            setTimeout(() => {
+                eIncreible.style.visibility = 'visible';
+                // Añadimos una animación de entrada (puedes usar animate.css)
+                eIncreible.style.animation = 'fadeIn 0.5s';
+                
+                // 3. Subrayamos la corrección
+                setTimeout(() => {
+                    annotationSubrayado.show();
+                }, 300);
+                
+                // Ocultamos la instrucción
+                document.getElementById('instruccion').style.opacity = '0';
+            }, 600);
+        }
+
+        // --- Función de Confetti (Librería externa) ---
+        function lanzarConfetti() {
+            // Disparo central
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#ff4081', '#ffffff', '#4caf50']
+            });
+
+            // Cañones laterales sutiles
+            setTimeout(() => {
+                confetti({
+                    particleCount: 50,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#ff4081', '#ffffff']
+                });
+            }, 200);
+            
+            setTimeout(() => {
+                confetti({
+                    particleCount: 50,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#4caf50', '#ffffff']
+                });
+            }, 400);
+        }
+    </script>
+    
+    <style>
+        /* Animación simple de fadeIn para CSS */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+</body>
+</html>
